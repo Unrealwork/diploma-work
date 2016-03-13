@@ -1,0 +1,63 @@
+\begin{lstlisting}[caption={Упорядочивание спектра по частоте}]
+private static double[] _order(double[] value, int n, int s) {
+  double[] result = new double[n];
+  for (int i = 0; i < n; i++) {
+    result[Walsh.rev(s, i)] = value[i];
+  }
+  return result;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Быстрое преобразование Уолша}]
+public static double[] fastWT(double[] signal, int n, int s) {
+  double[] xPrev = new double[n];
+  System.arraycopy(signal, 0, xPrev, 0, n);
+  double[] xCurr = new double[n];
+  int N_nu = n;
+  int delta_nu = 1;
+  for (int nu = 1; nu <= s; nu++) {
+    N_nu /= 2;
+    int next_delta_nu = delta_nu * 2;
+    for (int l = 0; l < delta_nu; l++) {
+      for (int p = 0; p < N_nu; p++) {
+        int leftIdx = l + p * next_delta_nu;
+        int idxFirstOperand = l + 2 * p * delta_nu;
+        int idxSecondOperand = l + (2 * p + 1) * delta_nu;
+        xCurr[leftIdx] = .5d * (xPrev[idxFirstOperand] + xPrev[idxSecondOperand]);
+        xCurr[leftIdx + delta_nu] = .5d * (xPrev[idxFirstOperand] - xPrev[idxSecondOperand]);
+      }
+    }
+    delta_nu *= 2;
+    System.arraycopy(xCurr, 0, xPrev, 0, n);
+  }
+  return _order(xCurr, n, s);
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Обратное быстрое преобразование Уолша}]
+public static double[] fastRevWT(double[] spectrum, int n, int s) {
+  double[] xPrev = new double[n];
+  double[] xCurr = new double[n];
+  System.arraycopy(spectrum, 0, xCurr, 0, n);
+  // N_s
+  int N_nu = 1;
+  // delta_s
+  int delta_nu = n / 2;
+  for (int nu = s; nu >= 1; nu--) {
+    int next_delta_nu = delta_nu * 2;
+    for (int l = 0; l < delta_nu; l++) {
+      for (int p = 0; p < N_nu; p++) {
+        int leftIdx = l + 2 * p * delta_nu;
+        int idxFirstOperand = l + p * next_delta_nu;
+        int idxSecondOperand = l + p * next_delta_nu + delta_nu;
+        xPrev[leftIdx] = xCurr[idxFirstOperand] + xCurr[idxSecondOperand];
+        xPrev[leftIdx + delta_nu] = xCurr[idxFirstOperand] - xCurr[idxSecondOperand];
+      }
+    }
+    N_nu *= 2;
+    delta_nu /= 2;
+    System.arraycopy(xPrev, 0, xCurr, 0, n);
+  }
+  return _order(xPrev, n, s);
+}
+\end{lstlisting}

@@ -1,0 +1,68 @@
+\begin{lstlisting}[caption={Вычисление дискретных функций Уолша}]
+public class Walsh {
+  private final int myS;
+
+  public Walsh(int s) {
+    this.myS = s;
+  }
+
+  public Function<Integer, Integer> v(final int k) {
+    return new Function<Integer, Integer>() {
+      @Override
+      public Integer apply(Integer j) {
+        return bitXor(k, j, myS) % 2 == 0 ? 1 : -1;
+      }
+    };
+  }
+
+  /**
+   * {k,j}_v
+   */
+  public static int bitXor(int k, int j, int v) {
+    BitSet kBits = convert(k);
+    BitSet jBits = convert(j);
+
+    int result = 0;
+    for (int i = 0; i < v; i++) {
+      int kBit = kBits.get(i) ? 1 : 0;
+      int jBit = jBits.get(i) ? 1 : 0;
+      result += kBit * jBit;
+    }
+    return result;
+  }
+
+  private static BitSet convert(int value) {
+    BitSet bits = new BitSet();
+    int index = 0;
+    while (value != 0) {
+      if (value % 2 != 0) {
+        bits.set(index);
+      }
+      ++index;
+      value = value >>> 1;
+    }
+    return bits;
+  }
+
+  private static int convert(BitSet bits) {
+    int value = 0;
+    for (int i = 0; i < bits.length(); ++i) {
+      value += bits.get(i) ? (1L << i) : 0L;
+    }
+    return value;
+  }
+
+  /**
+   * rev_s(k)
+   */
+  public static int rev(int s, int k) {
+    BitSet kBits = convert(k);
+    for (int i = 0, revLength = s / 2; i < revLength; i++) {
+      boolean tmp = kBits.get(i);
+      int idx = s - i - 1;
+      kBits.set(i, kBits.get(idx));
+      kBits.set(idx, tmp);
+    }
+    return convert(kBits);
+  }
+\end{lstlisting}

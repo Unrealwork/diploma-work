@@ -1,0 +1,270 @@
+\begin{lstlisting}[caption={Чтение wav файлов}]
+public class AudioSampleReader {
+
+  private AudioInputStream audioInputStream;
+  private AudioFormat format;
+
+  public AudioSampleReader(File file) throws UnsupportedAudioFileException, IOException {
+    audioInputStream = AudioSystem.getAudioInputStream(file);
+    format = audioInputStream.getFormat();
+  }
+
+  public double[] getInterleavedSamples() throws IOException,
+      IllegalArgumentException {
+    // allocate a byte buffer
+    byte[] inBuffer = readBytesAndCloseStream();
+
+
+    // decode bytes into samples. Supported encodings are:
+    // PCM-SIGNED, PCM-UNSIGNED, A-LAW, U-LAW
+    return decodeBytes(inBuffer);
+  }
+
+  protected AudioInputStream getAudioInputStream() {
+    return audioInputStream;
+  }
+
+  protected byte[] readBytesAndCloseStream() throws IOException {
+    byte[] result = ByteStreams.toByteArray(audioInputStream);
+    audioInputStream.close();
+    return result;
+  }
+
+  protected double[] decodeBytes(byte[] audioBytes) {
+    int sampleSizeInBytes = format.getSampleSizeInBits() / 8;
+    int[] sampleBytes = new int[sampleSizeInBytes];
+    double[] audioSamples = new double[audioBytes.length / sampleSizeInBytes];
+    int k = 0; // index in audioBytes
+    for (int i = 0; i < audioSamples.length; i++) {
+      // collect sample byte in big-endian order
+      if (format.isBigEndian()) {
+        // bytes start with MSB
+        for (int j = 0; j < sampleSizeInBytes; j++) {
+          sampleBytes[j] = audioBytes[k++];
+        }
+      } else {
+        // bytes start with LSB
+        for (int j = sampleSizeInBytes - 1; j >= 0; j--) {
+          sampleBytes[j] = audioBytes[k++];
+        }
+      }
+      // get integer value from bytes
+      int ival = 0;
+      for (int j = 0; j < sampleSizeInBytes; j++) {
+        ival += sampleBytes[j];
+        if (j < sampleSizeInBytes - 1) ival <<= 8;
+      }
+      // decode value
+      double ratio = Math.pow(2d, format.getSampleSizeInBits() - 1d);
+      double val = ((double) ival) / ratio;
+      audioSamples[i] = val;
+    }
+    return audioSamples;
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Запись wav файлов}]
+public class AudioSampleWriter {
+
+  private File file;
+  private AudioFormat format;
+  private AudioFileFormat.Type targetType;
+
+  public AudioSampleWriter(File file, AudioFormat format,
+                           AudioFileFormat.Type targetType) throws IOException {
+    this.format = format;
+    this.targetType = targetType;
+    this.file = file;
+  }
+
+
+  public void writeInterleavedSamples(double[] interleavedSamples) throws IOException {
+    byte[] bytes = encodeSamples(interleavedSamples);
+
+    Closer closer = Closer.create();
+    try {
+      ByteArrayInputStream inputStream = closer.register(new ByteArrayInputStream(bytes));
+      AudioInputStream audioInputStream = closer.register(new AudioInputStream(inputStream, format, AudioSystem.NOT_SPECIFIED));
+      AudioSystem.write(audioInputStream, targetType, file);
+    } catch (Throwable t) {
+      closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
+  }
+
+  protected byte[] encodeSamples(double[] audioData) throws IOException {
+    byte[] audioBytes = new byte[audioData.length * (format.getSampleSizeInBits() / 8)];
+    int in;
+    if (format.getSampleSizeInBits() == 16) {
+      if (format.isBigEndian()) {
+        for (int i = 0; i < audioData.length; i++) {
+          in = (int) (audioData[i] * 32768d);
+                    /* First byte is MSB (high order) */
+          audioBytes[2 * i] = (byte) (in >> 8);
+                    /* Second byte is LSB (low order) */
+          audioBytes[2 * i + 1] = (byte) (in & 255);
+        }
+      } else {
+        for (int i = 0; i < audioData.length; i++) {
+          in = (int) (audioData[i] * 32768d);
+                    /* First byte is LSB (low order) */
+          byte firstByte = (byte) (in & 255);
+          audioBytes[2 * i] = firstByte;
+                    /* Second byte is MSB (high order) */
+          audioBytes[2 * i + 1] = (byte) ((in - firstByte) >> 8);
+        }
+      }
+    return audioBytes;
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Чтение wal файла}]
+public class WalSampleReader extends AudioSampleReader {
+
+  private int myWindowLength;
+  private int mySigLength;
+
+  public WalSampleReader(File file) throws UnsupportedAudioFileException, IOException {
+    super(file);
+  }
+
+  @Override
+  protected byte[] readBytesAndCloseStream() throws IOException {
+    byte[] bytes = inflate(getAudioInputStream());
+    ByteBuffer sigLengthBuffer = ByteBuffer.wrap(Arrays.copyOfRange(bytes, 0, 4));
+    mySigLength = sigLengthBuffer.getInt();
+    ByteBuffer windowLengthBuffer = ByteBuffer.wrap(Arrays.copyOfRange(bytes, 4, 8));
+    myWindowLength = windowLengthBuffer.getInt();
+    return Arrays.copyOfRange(bytes, 8, bytes.length);
+  }
+
+  @Override
+  protected double[] decodeBytes(byte[] audioBytes) {
+    int samplesCount = (int) (audioBytes.length / (WalSampleWriter.BYTES_PER_SAMPLE + 8d / myWindowLength));
+    int windowCount = samplesCount / myWindowLength;
+    int bytesPerWindow = 8 + myWindowLength * WalSampleWriter.BYTES_PER_SAMPLE;
+    double[] audioSamples = new double[samplesCount];
+
+    for (int windowIdx = 0; windowIdx < windowCount; windowIdx++) {
+      int byteIdx = windowIdx * bytesPerWindow;
+      double ratio = ByteBuffer.wrap(Arrays.copyOfRange(audioBytes, byteIdx, byteIdx + 8)).getDouble();
+      byteIdx += 8;
+
+      for (int sampleIdx = windowIdx * myWindowLength; sampleIdx < (windowIdx + 1) * myWindowLength; sampleIdx++) {
+        byte[] sampleBytes = Arrays.copyOfRange(audioBytes, byteIdx, byteIdx + 2);
+        byteIdx += 2;
+
+        short ival = ByteBuffer.wrap(sampleBytes).getShort();
+        // decode value
+        double val = ((double) ival) / ratio;
+        audioSamples[sampleIdx] = val;
+      }
+    }
+    return audioSamples;
+  }
+
+  private static byte[] inflate(InputStream contentStream) throws IOException {
+    Closer closer = Closer.create();
+    try {
+      BufferedInputStream bufferedStream = closer.register(new BufferedInputStream(closer.register(contentStream)));
+      ObjectInputStream ois = closer.register(new ObjectInputStream(closer.register(new InflaterInputStream(bufferedStream))));
+      return (byte[]) ois.readObject();
+    } catch (Throwable e) {
+      throw closer.rethrow(e);
+    } finally {
+      closer.close();
+    }
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Запись wal файла}]
+public class WalSampleWriter extends AudioSampleWriter {
+
+  private final int myWindowLength;
+  private final int mySigLength;
+  static final int BYTES_PER_SAMPLE = 2;
+
+  public WalSampleWriter(File file, AudioFormat format,
+                         AudioFileFormat.Type targetType, int windowLength, int sigLength) throws IOException {
+    super(file, format, targetType);
+    myWindowLength = windowLength;
+    mySigLength = sigLength;
+  }
+
+  @Override
+  protected byte[] encodeSamples(double[] audioData) throws IOException {
+    // encode samples as usual
+    byte[] audioBytes = encodeAudioSamples(audioData);
+
+    // put window length
+    ByteBuffer windowLengthConverter = ByteBuffer.allocate(4);
+    windowLengthConverter.putInt(myWindowLength);
+
+    // put src signal length
+    ByteBuffer sigLengthConverter = ByteBuffer.allocate(4);
+    sigLengthConverter.putInt(mySigLength);
+
+    byte[] result = new byte[audioBytes.length + 8];
+    System.arraycopy(sigLengthConverter.array(), 0, result, 0, 4);
+    System.arraycopy(windowLengthConverter.array(), 0, result, 4, 4);
+    System.arraycopy(audioBytes, 0, result, 8, audioBytes.length);
+
+    // then deflate it
+    return deflate(result);
+  }
+
+  private byte[] encodeAudioSamples(double[] audioData) throws IOException {
+    int windowCount = audioData.length / myWindowLength;
+    byte[] audioBytes = new byte[audioData.length * BYTES_PER_SAMPLE + windowCount * 8];
+
+    int byteIdx = 0;
+    for (int i = 0; i < windowCount; i++) {
+      int winStart = i * myWindowLength;
+      int winEnd = (i + 1) * myWindowLength;
+
+      double max = -1;
+      for (int j = winStart; j < winEnd; j++) {
+        double sample = Math.abs(audioData[j]);
+        if (max < sample) {
+          max = sample;
+        }
+      }
+
+      double ratio = Short.MAX_VALUE / max;
+      byte[] ratioBytes = ByteBuffer.allocate(8).putDouble(ratio).array();
+      System.arraycopy(ratioBytes, 0, audioBytes, byteIdx, 8);
+      byteIdx += 8;
+
+      for (int j = winStart; j < winEnd; j++) {
+        short in = (short) Math.round(audioData[j] * ratio);
+        byte[] bytes = ByteBuffer.allocate(2).putShort(in).array();
+        System.arraycopy(bytes, 0, audioBytes, byteIdx, 2);
+        byteIdx += 2;
+      }
+    }
+    return audioBytes;
+  }
+
+  private static byte[] deflate(byte[] content) throws IOException {
+    Deflater deflater = new Deflater(Deflater.BEST_SPEED);
+    Closer closer = Closer.create();
+    try {
+      ByteArrayOutputStream buffer = closer.register(new ByteArrayOutputStream());
+      DeflaterOutputStream dos = closer.register(new DeflaterOutputStream(buffer, deflater));
+      ObjectOutputStream oos = closer.register(new ObjectOutputStream(dos));
+      oos.writeObject(content);
+      oos.flush();
+      oos.close();
+      return buffer.toByteArray();
+    } catch (Throwable e) {
+      throw closer.rethrow(e);
+    } finally {
+      closer.close();
+    }
+  }
+}
+\end{lstlisting}

@@ -1,0 +1,138 @@
+\begin{lstlisting}[caption={Выбор очередной оконной функции}]
+class WindowIterator implements Iterator<WindowFrame> {
+  private final Window myWindow;
+  private final int myFrom;
+  private final int myTo;
+  private int myCurrentFrameStart;
+
+  WindowIterator(Window window, int from, int to) {
+    myWindow = window;
+    myFrom = from;
+    myTo = to;
+    myCurrentFrameStart = myFrom;
+  }
+
+  WindowIterator(Window window, int to) {
+    this(window, 0, to);
+  }
+
+  @Override
+  public boolean hasNext() {
+    return myCurrentFrameStart < myTo;
+  }
+
+  @Override
+  public WindowFrame next() {
+    if (!hasNext()) {
+      throw new NoSuchElementException();
+    }
+    WindowFrame frame = myWindow.getFrame(myCurrentFrameStart);
+    myCurrentFrameStart += myWindow.getLength() * myWindow.getShift();
+    return frame;
+  }
+
+  @Override
+  public void remove() {
+    throw new UnsupportedOperationException();
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Абстрактное окно}]
+public abstract class Window {
+
+  private final int myWindowLength;
+  private final double myWindowShift;
+
+  protected Window(int windowLength, double windowShift) {
+    myWindowLength = windowLength;
+    myWindowShift = windowShift;
+  }
+
+  public Iterator<WindowFrame> getFrameIterator(int from, int to) {
+    return new WindowIterator(this, from, to);
+  }
+
+  public Iterator<WindowFrame> getFrameIterator(int to) {
+    return new WindowIterator(this, to);
+  }
+
+  public int getLength() {
+    return myWindowLength;
+  }
+
+  public double getShift() {
+    return myWindowShift;
+  }
+
+  public abstract WindowFrame getFrame(int left);
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Экземпляр оконной функции}]
+public abstract class WindowFrame {
+  private final int myLeft;
+  private final int myRight;
+  private final int myLength;
+
+  protected WindowFrame(int left, int right) {
+    myLeft = left;
+    myRight = right;
+    myLength = right - left;
+  }
+
+  public WalshWindowedSignal apply(Signal src) {
+    double[] samples = src.get(myLeft, myRight);
+    double[] windowedSamples = applyToSamples(samples);
+    return new WalshWindowedSignal(windowedSamples, myLeft, myRight);
+  }
+
+  private double[] applyToSamples(double[] samples) {
+    double[] windowedSamples = new double[myLength];
+    for (int i = 0; i < myLength; i++) {
+      windowedSamples[i] = samples[i] * value(i + myLeft);
+    }
+    return windowedSamples;
+  }
+
+  protected int getLeft() {
+    return myLeft;
+  }
+
+  protected int getRight() {
+    return myRight;
+  }
+
+  protected boolean inWindow(int t) {
+    return t >= getLeft() && t < getRight();
+  }
+
+  public abstract double value(int t);
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Прямоугольное окно}]
+public class RectangularWindow extends Window {
+
+  public RectangularWindow(int windowLength, double windowShift) {
+    super(windowLength, windowShift);
+  }
+
+  @Override
+  public WindowFrame getFrame(int left) {
+    return new RectangularWindowFrame(left);
+  }
+
+  private class RectangularWindowFrame extends WindowFrame {
+
+    private RectangularWindowFrame(int left) {
+      super(left, left + getLength());
+    }
+
+    @Override
+    public double value(int t) {
+      return inWindow(t) ? 1d : 0d;
+    }
+  }
+}
+\end{lstlisting}

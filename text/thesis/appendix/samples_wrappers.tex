@@ -1,0 +1,157 @@
+\begin{lstlisting}[caption={Базовый класс для сигнала и спектра}]
+public abstract class WindowedSamplesWrapper {
+
+  private final double[] mySamples;
+  private final int myLeft;
+  private final int myRight;
+
+  public WindowedSamplesWrapper(double[] samples, int left, int right) {
+    Preconditions.checkArgument(samples.length == right - left);
+    mySamples = samples;
+    myLeft = left;
+    myRight = right;
+  }
+
+  public double get(int i) {
+    if (i < myLeft || i >= myRight) {
+      return 0d;
+    }
+    return mySamples[i - myLeft];
+  }
+
+  public int getLeft() {
+    return myLeft;
+  }
+
+  public int getRight() {
+    return myRight;
+  }
+
+  public double[] getValue() {
+    return mySamples;
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Оконный сигнал}]
+public class WalshWindowedSignal extends WindowedSamplesWrapper {
+  public WalshWindowedSignal(double[] samples, int left, int right) {
+    super(samples, left, right);
+  }
+
+  public WalshWindowedSpectrum toSpectrum() {
+    double[] samples = getValue();
+    int n = samples.length;
+    int s = Util.intLog2(n);
+    double[] value = FWT.fastWT(samples, n, s);
+    return new WalshWindowedSpectrum(value, getLeft(), getRight());
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Оконный спектр}]
+public class WalshWindowedSpectrum extends WindowedSamplesWrapper {
+
+  public WalshWindowedSpectrum(double[] samples, int left, int right) {
+    super(samples, left, right);
+  }
+
+  public WalshWindowedSignal toSignal() {
+    double[] samples = getValue();
+    int n = samples.length;
+    int s = Util.intLog2(n);
+    double[] value = FWT.fastRevWT(samples, n, s);
+    return new WalshWindowedSignal(value, getLeft(), getRight());
+  }
+
+  public void applyFilter(Filter filter) {
+    double[] samples = getValue();
+    for (int i = 0; i < samples.length; i++) {
+      samples[i] = filter.apply(i, samples[i]);
+    }
+  }
+
+  public void applyFilters(List<Filter> filters) {
+    for (Filter filter : filters) {
+      applyFilter(filter);
+    }
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Исходный поток данных}]
+public class Signal {
+  private final double[] myValue;
+
+  public Signal(double[] value) {
+    myValue = value;
+  }
+
+  public double get(int i) {
+    return i < myValue.length ? myValue[i] : 0d;
+  }
+
+  public double[] get(int left, int right) {
+    Preconditions.checkArgument(left < right);
+    if (right <= myValue.length) {
+      return Arrays.copyOfRange(myValue, left, right);
+    }
+    double[] result = new double[right - left];
+    Arrays.fill(result, 0d);
+    System.arraycopy(myValue, left, result, 0, myValue.length - left);
+    return result;
+  }
+
+  public double[] getValue() {
+    return myValue;
+  }
+
+  public int getLength() {
+    return myValue.length;
+  }
+
+  public Iterator<WalshWindowedSignal> getIterator(Window window) {
+    return new WalshSignalIterator(this, window);
+  }
+
+  public static Signal fromWindowedSignals(List<WalshWindowedSignal> signals, int length) {
+    int samplesLength = 0;
+    for (WalshWindowedSignal signal : signals) {
+      samplesLength = Math.max(samplesLength, signal.getRight());
+    }
+
+    double[] samples = new double[samplesLength];
+    Arrays.fill(samples, 0d);
+    for (WalshWindowedSignal signal : signals) {
+      System.arraycopy(signal.getValue(), 0, samples, signal.getLeft(), signal.getRight() - signal.getLeft());
+    }
+    return new Signal(Util.trimArray(samples, length));
+  }
+
+  private static class WalshSignalIterator implements Iterator<WalshWindowedSignal> {
+    private final Iterator<WindowFrame> myFrameIterator;
+    private final Signal mySignal;
+
+    private WalshSignalIterator(Signal signal, Window window) {
+      mySignal = signal;
+      myFrameIterator = window.getFrameIterator(mySignal.getLength());
+    }
+
+    @Override
+    public boolean hasNext() {
+      return myFrameIterator.hasNext();
+    }
+
+    @Override
+    public WalshWindowedSignal next() {
+      WindowFrame frame = myFrameIterator.next();
+      return frame.apply(mySignal);
+    }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
+  }
+}
+\end{lstlisting}

@@ -1,0 +1,28 @@
+\begin{lstlisting}[caption={Общий интерфейс фильтров}]
+public interface Filter {
+  double apply(int frequency, double magnitude);
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Простейший среднечастотный фильтр}]
+public class MediumPassFilter implements Filter {
+  private final int myMinFrequency;
+  private final int myMaxFrequency;
+  private final double myCoefficient;
+
+  public MediumPassFilter(int minFrequency, int maxFrequency, double coefficient) {
+    myMinFrequency = minFrequency;
+    myMaxFrequency = maxFrequency;
+    myCoefficient = coefficient;
+  }
+
+  public MediumPassFilter(int minFrequency, int maxFrequency) {
+    this(minFrequency, maxFrequency, 0);
+  }
+
+  @Override
+  public double apply(int frequency, double magnitude) {
+    return frequency < myMinFrequency || frequency >= myMaxFrequency ? magnitude : magnitude * myCoefficient;
+  }
+}
+\end{lstlisting}
