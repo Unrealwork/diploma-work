@@ -12,12 +12,19 @@
 %% выбрать Unicode шрифт в котором есть кириллические глифы. Ниже
 %% основным шрифтом выбирается Unicode версия шрифта Computer Modern с заcечками
 \usepackage{fontspec}
-\setmainfont[Mapping=tex-text]{CMU Serif}
-
+\setmainfont[
+Ligatures=TeX,
+Extension=.otf,
+BoldFont=cmunbx,
+ItalicFont=cmunti,
+BoldItalicFont=cmunbi,
+]{cmunrm}
 %% В XeLaTex заменой известного пакета babel является пакет polyglossia.
 %% Теперь у нас будут переносы слов
 \usepackage{polyglossia}
+
 \setdefaultlanguage{russian}
+\setotherlanguage{english}
 
 %% Поля
 \usepackage[a4paper,includeheadfoot,top=20mm,bottom=20mm,left=30mm,right=15mm]{geometry}
