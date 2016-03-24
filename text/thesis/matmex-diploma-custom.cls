@@ -24,7 +24,6 @@ BoldItalicFont=cmunbi,
 \usepackage{polyglossia}
 
 \setdefaultlanguage{russian}
-\setotherlanguage{english}
 
 %% Поля
 \usepackage[a4paper,includeheadfoot,top=20mm,bottom=20mm,left=30mm,right=15mm]{geometry}
