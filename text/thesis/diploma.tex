@@ -95,7 +95,6 @@ $$ \ G_{u,v} =
     \cos \left[\frac{(2y+1)v\pi}{16} \right],
   $$
   где:
-  % TODO: дописать описание DCT преобразования %
   \begin{itemize}
   \item{$u$ - вертикальная пространственная частота для целых чисел $\ 0 \leq u < 8$}
   \item{$v$ - горизонатальная пространственная частота для целых чисел $\ 0 \leq v < 8$}
@@ -150,13 +149,70 @@ $$B_{j,k} = \mathrm{round} \left( \frac{G_{j,k}}{Q_{j,k}} \right) \mbox{ для 
  % B_{j,k} = \mathrm{round} \left( \frac{G_{j,k}}{Q_{j,k}} \right) \mbox{ for } j=0,1,2,\ldots,7; k=0,1,2,\ldots,7
 
   %where G is the unquantized DCT coefficients; Q is the quantization matrix above; and B is the quantized DCT coefficients.
-  Полученная матрица B, отправляется на следующий шаг, где будет произвоидиться ее энтропийное кодирование.
+  Полученная матрица B, отправляется на следующий шаг, где будет произвоидиться ее энтропийное кодирование.\\
   %Using this quantization matrix with the DCT coefficient matrix from above results in:
 
 \textbf{Энтропийное кодирование}\\
 
-\emph{Энтропийное кодирование} - это специальная форма сжатия данных без потерь. Она включает в себя переобределение порядка компонент изображения в виде \emph{"зиг-зага"} дальнейшее сжаатие методом \emph{кодирования повторов}, который группирует похожие повторяющие значения вместе,
+\emph{Энтропийное кодирование} - это специальная форма сжатия данных без потерь. Она включает в себя переобределение порядка компонент изображения в виде \emph{"зиг-зага"} (рис. 1) дальнейшее сжаатие методом \emph{кодирования повторов}, который группирует похожие повторяющие значения вместе. Затем к получивишейся последовательности применяется \emph{Код Хаффмана}.\\
+
+    \begin{figure}
+      \centering
+        \reflectbox{%
+          \includegraphics[width=0.5\textwidth]{images/zig-zag.png}}
+      \caption{Порядок "зиг-заг" в котором кодируются компонеты блока.}
+      % TODO: сделать  ссылки на изображения
+    \end{figure}
  %Entropy coding is a special form of lossless data compression. It involves arranging the image components in a "zigzag" order employing run-length encoding (RLE) algorithm that groups similar frequencies together, inserting length coding zeros, and then using Huffman coding on what is left.
+% TODO: Перести этот абзац.
+ %  The previous quantized DC coefficient is used to predict the current quantized DC coefficient. The difference between the two is encoded rather than the actual value. The encoding of the 63 quantized AC coefficients does not use such prediction differencing.
+
+Рассмотрим процесс кодирования данных уже представленных в "зиг-заг" порядке, начиная c объяснения, что такое кодирование повторов, дадим некоторые определения :
+
+ %The process of encoding the zig-zag quantized data begins with a run-length encoding explained below, where:
+
+\begin{itemize}
+    \item{
+        $x$ - ненулевой, AC коэфициент получившийся после квантования.
+    }
+    %x is the non-zero, quantized AC coefficient.
+    \item{
+        $RUNLENGTH$ - число нулей которые следуют перед ненулевым AC коэффициентом
+    }
+     %RUNLENGTH is the number of zeroes that came before this non-zero AC coefficient.
+     \item{
+        $SIZE$ - число бит требуемых, чтобы представить $x$.
+     }
+      %SIZE is the number of bits required to represent x.
+    \item{
+        $AMPLITUDE$ - побитовое представление $x$.
+    }
+     %AMPLITUDE is the bit-representation of x.
+\end{itemize}
+
+Кодирование повторов работает исследуя каждый  ненулевой AC коэффицинт x и определяя, как много нулей следует перед ним. C этой иноформацией и создаются два \emph{символа}.
+
+ %The run-length encoding works by examining each non-zero AC coefficient x and determining how many zeroes came before the previous AC coefficient. With this information, two symbols are created:
+
+  $$ \begin{bmatrix}
+        Symbol 1 & Symbol 2 \\
+        RUNLENGTH, SIZE& AMPLITUDE\\
+
+       \end{bmatrix}. $$\\
+
+  Оба числа RUNLENGTH и SIZE  хранятся в одном и том же байте, под каждый из них отводится по 4 бита. Так значения любого из них не превосходит 64.
+
+ %Both RUNLENGTH and SIZE rest on the same byte, meaning that each only contains four bits of information. The higher bits deal with the number of zeroes, while the lower bits denote the number of bits necessary to encode the value of x.
+
+Так же в стандарте определены специальные символы, которые означают окочание блока, и еще один на случай когда встречаются более более 15 нулей подряд, до достижения ненулевого коэффицинта, тогда символ кодируется специально как: (15, 0) (0).
+ %This has the immediate implication of Symbol 1 being only able store information regarding the first 15 zeroes preceding the non-zero AC coefficient. However, JPEG defines two special Huffman code words. One is for ending the sequence prematurely when the remaining coefficients are zero (called "End-of-Block" or "EOB"), and another when the run of zeroes goes beyond 15 before reaching a non-zero AC coefficient. In such a case where 16 zeroes are encountered before a given non-zero AC coefficient, Symbol 1 is encoded "specially" as: (15, 0)(0).
+
+ Весь процесс продолжается до тех пор пока не будет достигнут сивол окончания блока. Определенный как символ (0,0).
+
+ %The overall process continues until "EOB" – denoted by (0, 0) – is reached.
+
+ %With this in mind, the sequence from earlier becomes:
+
 \subsubsection{Декодирование}
 \subsubsection{Представление}
 \subsection{Сжатие JPEG изображений без потерь}
