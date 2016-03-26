@@ -59,7 +59,7 @@
 
 \section{Предварительные сведения}
 Сжатие это техника направленная на понижение размерности данных без  чрезмерной потери качества мультимедийных данных.
-Перемещение и хранение сжатых мультимединых  файлов намного быстрее  и эффективнее, чем у оригинальных данных. Если при сжатии уменьщается снижается качество исходных данных то это сжатие с потерями, иначе - без потерь. Существует множестнво разнообразных  техник и стандартов для сжатия мультемедийных данных с потерями, одним из них на протяжении многих лет является формат изображений JPEG.
+Перемещение и хранение сжатых мультимединых  файлов намного быстрее  и эффективнее, чем у оригинальных данных. Если при сжатии уменьщается снижается качество исходных данных то это сжатие с потерями, иначе - без потерь. Существует множестнво разнообразных  техник и стандартов для сжатия мультемедийных данных с потерями, одним из таких стандартов протяжении многих лет является формат изображений JPEG.
 \subsection{Стандарт сжатия изображений JPEG}
 JPEG-это стандарт сжатия изображений разработаный Joint Photogrphic Experts Group. Он был официально одобрен мировым сообществом в 1992 году. JPEG содержит некоторое число шагов, каждый из которых способствует процессу сжатия.
 Рассмотрим каждый из них детально.
@@ -122,7 +122,41 @@ $$ \ G_{u,v} =
 
 \textbf{Квантование}\newline
 
+Человеческий глаз  хорошо приспособлен замечать маленькие различия в яркости на относительно больших расстояниях, но плохо отличает точную силу яркости на высоких частотах. Это позволяет значительно уменьшить количество информации о высокого частотных компонентах. Данную операцию можно  осуществить простым делением значения  каждой компоненты в частотном диапозоне на константу и последующим округлением этого значения ближайшим целым числом. Это действие, единственное во всем процессе сжатия при котором происходит потеря данных, в отличии от дискретного косинусного пребразования, которое выполняет вычисления с выской точностью. Как результат, многие компоненты оказваются равны  нулю или их значение очень близко к нулю, как следствие они занимают меньше бит в памяти.
+
+%The human eye is good at seeing small differences in brightness over a relatively large area, but not so good at distinguishing the exact strength of a high frequency brightness variation. This allows one to greatly reduce the amount of information in the high frequency components. This is done by simply dividing each component in the frequency domain by a constant for that component, and then rounding to the nearest integer. This rounding operation is the only lossy operation in the whole process (other than chroma subsampling) if the DCT computation is performed with sufficiently high precision. As a result of this, it is typically the case that many of the higher frequency components are rounded to zero, and many of the rest become small positive or negative numbers, which take many fewer bits to represent.
+Подобные процессы, когда процедура построения чего-либо ведтся с помощью набора дискретных (в нашем случае целых) велечин называется \emph{квантованием}.
+
+Элементы \emph{матрицы квантования} управляют коэфициентом сжатия. Чем больше значение компонент, тем больше будет потеря изображения в качетсве. Типичная матрица квантования (качество ухудшается примерено на 50\%, утверждена как часть стандарта JPEG), выглядит следующим образом:
+%The elements in the quantization matrix control the compression ratio, with larger values producing greater compression. A typical quantization matrix (for a quality of 50% as specified in the original JPEG Standard), is as follows:
+$$ Q=
+     \begin{bmatrix}
+      16 & 11 & 10 & 16 & 24 & 40 & 51 & 61 \\
+      12 & 12 & 14 & 19 & 26 & 58 & 60 & 55 \\
+      14 & 13 & 16 & 24 & 40 & 57 & 69 & 56 \\
+      14 & 17 & 22 & 29 & 51 & 87 & 80 & 62 \\
+      18 & 22 & 37 & 56 & 68 & 109 & 103 & 77 \\
+      24 & 35 & 55 & 64 & 81 & 104 & 113 & 92 \\
+      49 & 64 & 78 & 87 & 103 & 121 & 120 & 101 \\
+      72 & 92 & 95 & 98 & 112 & 100 & 103 & 99
+     \end{bmatrix}.
+$$
+
+Квантование коэффициентов матрицы  G, полученной на предыдущем шаге, происходит следующим образом:
+% The quantized DCT coefficients are computed with
+е
+$$B_{j,k} = \mathrm{round} \left( \frac{G_{j,k}}{Q_{j,k}} \right) \mbox{ для } j=0,1,2,\ldots,7; k=0,1,2,\ldots,7$$
+
+ % B_{j,k} = \mathrm{round} \left( \frac{G_{j,k}}{Q_{j,k}} \right) \mbox{ for } j=0,1,2,\ldots,7; k=0,1,2,\ldots,7
+
+  %where G is the unquantized DCT coefficients; Q is the quantization matrix above; and B is the quantized DCT coefficients.
+  Полученная матрица B, отправляется на следующий шаг, где будет произвоидиться ее энтропийное кодирование.
+  %Using this quantization matrix with the DCT coefficient matrix from above results in:
+
 \textbf{Энтропийное кодирование}\\
+
+\emph{Энтропийное кодирование} - это специальная форма сжатия данных без потерь. Она включает в себя переобределение порядка компонент изображения в виде \emph{"зиг-зага"} дальнейшее сжаатие методом \emph{кодирования повторов}, который группирует похожие повторяющие значения вместе,
+ %Entropy coding is a special form of lossless data compression. It involves arranging the image components in a "zigzag" order employing run-length encoding (RLE) algorithm that groups similar frequencies together, inserting length coding zeros, and then using Huffman coding on what is left.
 \subsubsection{Декодирование}
 \subsubsection{Представление}
 \subsection{Сжатие JPEG изображений без потерь}
