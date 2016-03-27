@@ -90,7 +90,7 @@ $$ \ G_{u,v} =
     \alpha(v)
     \sum_{x=0}^7
     \sum_{y=0}^7
-    g_{x,y}
+    g_{x,y}git config user.name
     \cos \left[\frac{(2x+1)u\pi}{16} \right]
     \cos \left[\frac{(2y+1)v\pi}{16} \right],
   $$
@@ -207,13 +207,78 @@ $$B_{j,k} = \mathrm{round} \left( \frac{G_{j,k}}{Q_{j,k}} \right) \mbox{ для 
 Так же в стандарте определены специальные символы, которые означают окочание блока \emph{EOB}, и еще один на случай когда встречаются более более 15 нулей подряд, до достижения ненулевого коэффицинта, тогда символ кодируется специально как: (15, 0) (0).
  %This has the immediate implication of Symbol 1 being only able store information regarding the first 15 zeroes preceding the non-zero AC coefficient. However, JPEG defines two special Huffman code words. One is for ending the sequence prematurely when the remaining coefficients are zero (called "End-of-Block" or "EOB"), and another when the run of zeroes goes beyond 15 before reaching a non-zero AC coefficient. In such a case where 16 zeroes are encountered before a given non-zero AC coefficient, Symbol 1 is encoded "specially" as: (15, 0)(0).
 
- Весь процесс продолжается до тех пор пока не будет достигнут сивол окончания блока. Определенный как символ  EOB - (0,0).
+ Весь процесс продолжается до тех пор пока не будет достигнут сивол окончания блока. Определенный как символ  EOB - (0,0).\\
 
  %The overall process continues until "EOB" – denoted by (0, 0) – is reached.
 
  %With this in mind, the sequence from earlier becomes:
 
 \subsubsection{Декодирование}
+
+Декодирование для отображения изображения состоит из тех же шагов, выполняемых в обратном порядке.
+
+%Decoding to display the image consists of doing all the above in reverse.
+
+Возьмем раскодированую матрицу коэффициентов, полученную после примения к ней дешифрования кода Хаффмана и декодирование повторов. И расположим символы этой последовательности в правильном порядке. В результате получится матрица $B$, являющуюся результатом шага квантования.
+%Taking the DCT coefficient matrix (after adding the difference of the DC coefficient back in)
+После умножим матрицe $B$  на матрицу квантования $Q$ по Адамару. В результате получим матрицу $F$
+
+%and taking the entry-for-entry product with the quantization matrix from above results in
+$$ F = B \circ Q $$
+
+которая очень похожа на оригинальную  матрицу $G$, явяляющуюся результатом дискретного косинусного преобразования.
+
+%which closely resembles the original DCT coefficient matrix for the top-left portion.
+
+Следующим шагом является применение обратного косинусного преобразования, которое можно описать слкдюущим образом:
+
+%The next step is to take the two-dimensional inverse DCT (a 2D type-III DCT), which is given by:
+
+$$f_{x,y} =
+ \frac{1}{4}
+ \sum_{u=0}^7
+ \sum_{v=0}^7
+ \alpha(u) \alpha(v) F_{u,v}
+ \cos \left[\frac{(2x+1)u\pi}{16} \right]
+ \cos \left[\frac{(2y+1)v\pi}{16} \right]
+
+$$
+%where
+
+где
+
+\begin{itemize}
+\item{
+$\ x$ столбец пикселей $\ 0 \leq x < 8$.
+}
+\item{
+$\ y$ строка пикселей $\ 0 \leq y < 8$.
+}
+\item{
+$\ F_{u,v}$ это компонента матрицы коэффициентов полученая на предыдущем шаге с координатам $\ (u,v)$.
+}
+\item{
+$\ f_{x,y}$ - значение полученой компоненты с координатами $\ (x,y)$
+}
+\end{itemize}
+
+После значения  каждой компоненты округляются до ближеайшего целого числа, так изначально значение компоненты целочисленное, и к каждому значению прибавляется 128. На этом процедура декодирования заканчивается. И мы получаем изображени практически идентичное оригиналу.
+%Rounding the output to integer values (since the original had integer values) results in an image with values (still shifted down by 128)
+
+
+
+%Notice the slight differences between the original (top) and decompressed image (bottom), which is most readily seen in the bottom-left corner.
+
+%and adding 128 to each entry
+
+%This is the decompressed subimage. In general, the decompression process may produce values outside the original input range of [0, 255]. If this occurs, the decoder needs to clip the output values keep them within that range to prevent overflow when storing the decompressed image with the original bit depth.
+
+%The decompressed subimage can be compared to the original subimage (also see images to the right) by taking the difference (original − uncompressed) results in the following error values:
+
+
+%with an average absolute error of about 5 values per pixels (i.e., \frac{1}{64} \sum_{x=0}^7 \sum_{y=0}^7 |e(x,y)| = 4.9197).
+
+%The error is most noticeable in the bottom-left corner where the bottom-left pixel becomes darker than the pixel to its immediate right.
 \subsubsection{Представление}
 \subsection{Сжатие JPEG изображений без потерь}
 \subsection{Технология OpenCL}
