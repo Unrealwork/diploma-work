@@ -204,10 +204,10 @@ $$B_{j,k} = \mathrm{round} \left( \frac{G_{j,k}}{Q_{j,k}} \right) \mbox{ для 
 
  %Both RUNLENGTH and SIZE rest on the same byte, meaning that each only contains four bits of information. The higher bits deal with the number of zeroes, while the lower bits denote the number of bits necessary to encode the value of x.
 
-Так же в стандарте определены специальные символы, которые означают окочание блока, и еще один на случай когда встречаются более более 15 нулей подряд, до достижения ненулевого коэффицинта, тогда символ кодируется специально как: (15, 0) (0).
+Так же в стандарте определены специальные символы, которые означают окочание блока \emph{EOB}, и еще один на случай когда встречаются более более 15 нулей подряд, до достижения ненулевого коэффицинта, тогда символ кодируется специально как: (15, 0) (0).
  %This has the immediate implication of Symbol 1 being only able store information regarding the first 15 zeroes preceding the non-zero AC coefficient. However, JPEG defines two special Huffman code words. One is for ending the sequence prematurely when the remaining coefficients are zero (called "End-of-Block" or "EOB"), and another when the run of zeroes goes beyond 15 before reaching a non-zero AC coefficient. In such a case where 16 zeroes are encountered before a given non-zero AC coefficient, Symbol 1 is encoded "specially" as: (15, 0)(0).
 
- Весь процесс продолжается до тех пор пока не будет достигнут сивол окончания блока. Определенный как символ (0,0).
+ Весь процесс продолжается до тех пор пока не будет достигнут сивол окончания блока. Определенный как символ  EOB - (0,0).
 
  %The overall process continues until "EOB" – denoted by (0, 0) – is reached.
 
