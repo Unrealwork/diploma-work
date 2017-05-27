@@ -154,8 +154,6 @@ BoldItalicFont=cmunbi,
     \my@title@supervisorPosition@ru\ \my@title@supervisor@ru
     }
     {\normalsize \raggedleft 
-    Допущена к защите.\\
-    Зав. кафедрой:\\
     \my@title@chairHeadPosition@ru\ \my@title@chairHead@ru\sigspace
     Научный руководитель:\\
     \my@title@supervisorPosition@ru\ \my@title@supervisor@ru\sigspace
@@ -204,9 +202,7 @@ BoldItalicFont=cmunbi,
     Scientific supervisor:\\
     \my@title@supervisorPosition@en\ \my@title@supervisor@en
     }
-    {\normalsize \raggedleft 
-    Admitted for defence.\\
-    Head of the chair:\\
+    {\normalsize \raggedleft
     \my@title@chairHeadPosition@en\ \my@title@chairHead@en\sigspace
 
     Scientific supervisor:\\

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 cd src/thesis/
-xelatex -synctex=1 -interaction=nonstopmode diploma.tex
-xdg-open diploma.pdf &
-# rm diploma.aux diploma.log diploma.out diploma.synctex.gz diploma.toc
+rm diploma.aux diploma.log diploma.out diploma.synctex.gz diploma.toc diploma.bbl diploma.bcf diploma.blg
+xelatex -synctex=1 -interaction=nonstopmode diploma
+bibtex diploma
+xelatex -synctex=1 -interaction=nonstopmode diploma
+xdg-open diploma.pdf
 exit
